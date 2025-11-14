@@ -1,0 +1,51 @@
+[package]
+name = "quantum-crypto-engine"
+version = "0.1.0"
+edition = "2021"
+authors = ["CPScript"]
+description = "Cryptography engine using quantum entropy from webcam sensors"
+license = "MIT"
+
+[dependencies]
+nokhwa = { version = "0.10", features = ["input-native"] }
+cpal = "0.15"
+anyhow = "1.0"
+thiserror = "1.0"
+sha3 = "0.10"
+aes-gcm = "0.10"
+chacha20poly1305 = "0.10"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
+rand_core = "0.6"
+zeroize = { version = "1.7", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.22"
+hex = "0.4"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true
+
+[[bin]]
+name = "qce"
+path = "src/main.rs"
+
+[[example]]
+name = "basic_encryption"
+path = "examples/basic_encryption.rs"
+
+[[example]]
+name = "file_encryption"
+path = "examples/file_encryption.rs"
+
+[[example]]
+name = "key_generation"
+path = "examples/key_generation.rs"
