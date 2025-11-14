@@ -97,7 +97,7 @@ fn main() -> anyhow::Result<()> {
             engine.start_continuous_collection(entropy_source)?;
             
             println!("Waiting for entropy pool to fill...");
-            std::thread::sleep(std::time::Duration::from_secs(3));
+            wait_for_entropy(&engine, 8192)?;
             
             let engine_arc = Arc::new(engine);
             let cipher_algo = parse_cipher_algorithm(&algorithm)?;
@@ -121,7 +121,7 @@ fn main() -> anyhow::Result<()> {
             engine.start_continuous_collection(entropy_source)?;
             
             println!("Waiting for entropy pool to fill...");
-            std::thread::sleep(std::time::Duration::from_secs(3));
+            wait_for_entropy(&engine, 8192)?;
             
             let engine_arc = Arc::new(engine);
             
@@ -147,12 +147,12 @@ fn main() -> anyhow::Result<()> {
         
         Commands::GenerateKey { output, length, source } => {
             println!("Initializing quantum entropy collection...");
-            let mut engine = QuantumCryptoEngine::new(8192)?;
+            let mut engine = QuantumCryptoEngine::new(16384)?; // Made it have a larger pool for key generation
             let entropy_source = parse_entropy_source(&source)?;
             engine.start_continuous_collection(entropy_source)?;
             
-            println!("Collecting quantum entropy...");
-            std::thread::sleep(std::time::Duration::from_secs(3));
+            println!("Collecting quantum entropy (this may take a moment)...");
+            wait_for_entropy(&engine, 8192)?;
             
             let engine_arc = Arc::new(engine);
             let kdf = KeyDerivation::new(engine_arc.clone());
@@ -162,6 +162,9 @@ fn main() -> anyhow::Result<()> {
             
             fs::write(&output, hex::encode(&key))?;
             println!("Generated {}-byte key written to {}", length, output);
+            
+            let stats = engine_arc.entropy_stats();
+            println!("Entropy health: {} ({:.4} bits/bit)", stats.health_status, stats.average_entropy);
         },
         
         Commands::Sign { message, key, output, source } => {
@@ -170,7 +173,7 @@ fn main() -> anyhow::Result<()> {
             let entropy_source = parse_entropy_source(&source)?;
             engine.start_continuous_collection(entropy_source)?;
             
-            std::thread::sleep(std::time::Duration::from_secs(3));
+            wait_for_entropy(&engine, 8192)?;
             
             let engine_arc = Arc::new(engine);
             let signer = QuantumSigner::new(engine_arc);
@@ -191,7 +194,7 @@ fn main() -> anyhow::Result<()> {
             let entropy_source = parse_entropy_source(&source)?;
             engine.start_continuous_collection(entropy_source)?;
             
-            std::thread::sleep(std::time::Duration::from_secs(2));
+            wait_for_entropy(&engine, 4096)?;
             
             let engine_arc = Arc::new(engine);
             let signer = QuantumSigner::new(engine_arc);
@@ -242,6 +245,38 @@ fn main() -> anyhow::Result<()> {
     }
     
     Ok(())
+}
+
+fn wait_for_entropy(engine: &QuantumCryptoEngine, min_bits: usize) -> anyhow::Result<()> {
+    let max_wait_seconds = 30;
+    let check_interval_ms = 200;
+    let max_checks = (max_wait_seconds * 1000) / check_interval_ms;
+    
+    for i in 0..max_checks {
+        let stats = engine.entropy_stats();
+        
+        if stats.available_bytes >= (min_bits / 8) {
+            println!("✓ Entropy pool ready ({} bytes collected)", stats.available_bytes);
+            return Ok(());
+        }
+        
+        if i % 5 == 0 && i > 0 {
+            println!("  Collecting... {}/{} bytes ({:.1}s elapsed)", 
+                stats.available_bytes, 
+                min_bits / 8,
+                (i * check_interval_ms) as f64 / 1000.0
+            );
+        }
+        
+        std::thread::sleep(std::time::Duration::from_millis(check_interval_ms));
+    }
+    
+    let stats = engine.entropy_stats();
+    anyhow::bail!(
+        "Timeout waiting for entropy. Only collected {} bytes in {} seconds. Check if webcam is working.",
+        stats.available_bytes,
+        max_wait_seconds
+    )
 }
 
 fn parse_entropy_source(source: &str) -> anyhow::Result<EntropySource> {
