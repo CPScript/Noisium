@@ -23,6 +23,9 @@ enum Commands {
         #[arg(short, long, default_value = "aes256")]
         algorithm: String,
         
+        #[arg(short, long)]
+        password: Option<String>,
+        
         #[arg(short, long, default_value = "webcam")]
         source: String,
     },
@@ -33,6 +36,9 @@ enum Commands {
         
         #[arg(short, long)]
         output: String,
+        
+        #[arg(short, long)]
+        password: Option<String>,
         
         #[arg(short, long, default_value = "webcam")]
         source: String,
@@ -90,7 +96,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     
     match cli.command {
-        Commands::Encrypt { input, output, algorithm, source } => {
+        Commands::Encrypt { input, output, algorithm, password, source } => {
             println!("Initializing quantum entropy collection...");
             let mut engine = QuantumCryptoEngine::new(8192)?;
             let entropy_source = parse_entropy_source(&source)?;
@@ -101,7 +107,15 @@ fn main() -> anyhow::Result<()> {
             
             let engine_arc = Arc::new(engine);
             let cipher_algo = parse_cipher_algorithm(&algorithm)?;
-            let cipher = QuantumCipher::new(engine_arc.clone(), cipher_algo);
+            
+            let cipher = if let Some(pwd) = password {
+                println!("Using password-based encryption");
+                QuantumCipher::with_password(engine_arc.clone(), cipher_algo, &pwd)?
+            } else {
+                println!("WARNING: No password provided. File cannot be decrypted later!");
+                println!("Use --password <your_password> for decryptable files.");
+                QuantumCipher::new(engine_arc.clone(), cipher_algo)
+            };
             
             println!("Reading input file...");
             let plaintext = fs::read(&input)?;
@@ -114,7 +128,7 @@ fn main() -> anyhow::Result<()> {
             println!("Entropy status: {:?}", engine_arc.health_status());
         },
         
-        Commands::Decrypt { input, output, source } => {
+        Commands::Decrypt { input, output, password, source } => {
             println!("Initializing quantum entropy collection...");
             let mut engine = QuantumCryptoEngine::new(8192)?;
             let entropy_source = parse_entropy_source(&source)?;
@@ -136,7 +150,11 @@ fn main() -> anyhow::Result<()> {
                 anyhow::bail!("Unknown cipher algorithm");
             };
             
-            let cipher = QuantumCipher::new(engine_arc.clone(), algorithm);
+            let cipher = if let Some(pwd) = password {
+                QuantumCipher::with_password(engine_arc.clone(), algorithm, &pwd)?
+            } else {
+                anyhow::bail!("Password required for decryption. Use --password <your_password>");
+            };
             
             println!("Decrypting...");
             let plaintext = cipher.decrypt(&ciphertext)?;
