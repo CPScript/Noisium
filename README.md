@@ -3,7 +3,7 @@
 A cryptography engine that uses quantum entropy from consumer webcam CMOS sensors. Unlike algorithmic PRNGs, this system extracts randomness from quantum shot noise and thermal fluctuations in semiconductor physics.
 
 > [!WARNING] 
-> Disclaimer; **This is an experimental cryptographic system**. While based on sound physical principles, it has not undergone formal security certification. Use at your own risk. For production systems requiring certified cryptography, consult with security professionals and use validated implementations.
+> Disclaimer; **This is an experimental cryptographic system**. While based on sound physical principles, it has not undergone formal security certification. Use at your own risk. For production systems requiring certified cryptography, consult with security professionals and use validated implementations. **This was also tested using a Logi 1080p webcam, on windows 11.**
 
 ## Features
 
