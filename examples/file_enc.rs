@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::fs;
 
 fn main() -> anyhow::Result<()> {
-    println!("Quantum Cryptography Engine - File Encryption Example\n");
+    println!("Noisium | Quantum Cryptography Engine - File Encryption Example\n");
     
     fs::write("test_plaintext.txt", b"This is a test file for quantum encryption!")?;
     println!("Created test file: test_plaintext.txt");
